@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Mail, Copy, Check, Send, Sparkles, MessageSquare } from "lucide-react";
+import { Mail, Copy, Check, Send, Sparkles, MessageSquare, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { portfolioData } from "@/data/portfolioData";
 import { audioEngine } from "@/lib/audioEngine";
 
@@ -25,6 +25,9 @@ export const Contact: React.FC<ContactProps> = ({ onOpenAI }) => {
   const [copied, setCopied] = useState(false);
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "fallback_needed" | "error">("idle");
+  const [statusMessage, setStatusMessage] = useState("");
 
   const email = portfolioData.contact.directEmail;
 
@@ -35,8 +38,60 @@ export const Contact: React.FC<ContactProps> = ({ onOpenAI }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSendMail = (e: React.FormEvent) => {
+  const handleSendMail = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!message.trim() || isSubmitting) return;
+
+    audioEngine.playClickSound();
+    setIsSubmitting(true);
+    setSubmitStatus("idle");
+    setStatusMessage("");
+
+    const now = new Date();
+    const formattedTime = now.toLocaleString("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim() || "Visitor",
+          time: formattedTime,
+          message: message.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setSubmitStatus("success");
+        setStatusMessage("Message dispatched successfully to Jeshurun via EmailJS!");
+        setName("");
+        setMessage("");
+        audioEngine.playChime();
+      } else if (data.error === "EMAILJS_PUBLIC_KEY_REQUIRED") {
+        // Direct mailto fallback if public key is waiting configuration
+        setSubmitStatus("fallback_needed");
+        setStatusMessage("Direct EmailJS ready. Opening standard mail composer...");
+        const subject = encodeURIComponent(`Message from ${name || "Portfolio Visitor"}`);
+        const body = encodeURIComponent(`[Sent: ${formattedTime}]\n\n${message}`);
+        window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
+      } else {
+        setSubmitStatus("error");
+        setStatusMessage(data.details || "Could not dispatch via EmailJS. Click below to email directly.");
+      }
+    } catch (err: any) {
+      setSubmitStatus("error");
+      setStatusMessage("Network error during dispatch. You can still email directly via mailto.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDirectMailFallback = () => {
     audioEngine.playClickSound();
     const subject = encodeURIComponent(`Message from ${name || "Visitor"}`);
     const body = encodeURIComponent(message || "Hey Jeshurun, saw your portfolio and wanted to connect!");
@@ -144,11 +199,37 @@ export const Contact: React.FC<ContactProps> = ({ onOpenAI }) => {
           </div>
         </div>
 
-        {/* Right Column: Message Form */}
+        {/* Right Column: Message Form (EmailJS Integrated) */}
         <div className="lg:col-span-7 rounded-3xl bg-gradient-to-b from-[#161b22]/90 to-[#0d1117]/90 backdrop-blur-2xl p-8 sm:p-10 border border-white/10 shadow-2xl">
-          <div className="pb-5 border-b border-white/10 mb-6 text-sm font-bold text-white">
-            Send a Direct Note
+          <div className="flex items-center justify-between pb-5 border-b border-white/10 mb-6 text-sm font-bold text-white">
+            <span>Send a Direct Note</span>
+            <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30 font-medium">
+              EmailJS: service_ey70e17
+            </span>
           </div>
+
+          {submitStatus === "success" && (
+            <div className="mb-6 p-4 rounded-2xl bg-[#10b981]/15 border border-[#10b981]/40 text-[#10b981] text-xs flex items-center gap-3 animate-fade-in">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#10b981]" />
+              <div className="font-medium">{statusMessage}</div>
+            </div>
+          )}
+
+          {submitStatus === "error" && (
+            <div className="mb-6 p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 shrink-0 text-amber-400" />
+                <span>{statusMessage}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleDirectMailFallback}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 text-black font-bold text-[11px] hover:bg-amber-400 transition-colors whitespace-nowrap"
+              >
+                Send via Mail
+              </button>
+            </div>
+          )}
 
           <form onSubmit={handleSendMail} className="space-y-4 text-xs">
             <div>
@@ -158,7 +239,8 @@ export const Contact: React.FC<ContactProps> = ({ onOpenAI }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Alex"
-                className="w-full px-4 py-3.5 rounded-2xl bg-[#080a0f] border border-white/10 text-white text-sm focus:border-[#00f0ff] focus:outline-none transition-colors"
+                disabled={isSubmitting}
+                className="w-full px-4 py-3.5 rounded-2xl bg-[#080a0f] border border-white/10 text-white text-sm focus:border-[#00f0ff] focus:outline-none transition-colors disabled:opacity-50"
               />
             </div>
 
@@ -169,16 +251,28 @@ export const Contact: React.FC<ContactProps> = ({ onOpenAI }) => {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Let's build something impactful, discuss music technology, or collaborate on code..."
-                className="w-full px-4 py-3.5 rounded-2xl bg-[#080a0f] border border-white/10 text-white text-sm focus:border-[#00f0ff] focus:outline-none transition-colors resize-none"
+                disabled={isSubmitting}
+                required
+                className="w-full px-4 py-3.5 rounded-2xl bg-[#080a0f] border border-white/10 text-white text-sm focus:border-[#00f0ff] focus:outline-none transition-colors resize-none disabled:opacity-50"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#00f0ff] via-[#10b981] to-[#f59e0b] text-black font-bold text-sm hover:opacity-90 shadow-cyan-glow transition-all flex items-center justify-center gap-2"
+              disabled={isSubmitting || !message.trim()}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#00f0ff] via-[#10b981] to-[#f59e0b] text-black font-bold text-sm hover:opacity-90 disabled:opacity-50 shadow-cyan-glow transition-all flex items-center justify-center gap-2"
             >
-              <Send className="w-4 h-4" />
-              <span>Send Message to Jeshurun</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-black" />
+                  <span>Transmitting Note to Jeshurun...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>Send Message to Jeshurun</span>
+                </>
+              )}
             </button>
           </form>
         </div>
