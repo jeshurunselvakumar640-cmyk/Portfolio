@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SERVICE_ID = "service_ey70e17";
-const TEMPLATE_ID = "template_6tusrhc";
+const SERVICE_ID = process.env.EMAILJS_SERVICE_ID || "service_ey70e17";
+const TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID || "template_6tusrhc";
 
 export async function POST(req: NextRequest) {
   try {

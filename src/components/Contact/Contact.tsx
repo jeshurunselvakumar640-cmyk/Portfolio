@@ -68,20 +68,20 @@ export const Contact: React.FC<ContactProps> = ({ onOpenAI }) => {
 
       if (res.ok && data.success) {
         setSubmitStatus("success");
-        setStatusMessage("Message dispatched successfully to Jeshurun via EmailJS!");
+        setStatusMessage("Message dispatched successfully to Jeshurun!");
         setName("");
         setMessage("");
         audioEngine.playChime();
       } else if (data.error === "EMAILJS_PUBLIC_KEY_REQUIRED") {
         // Direct mailto fallback if public key is waiting configuration
         setSubmitStatus("fallback_needed");
-        setStatusMessage("Direct EmailJS ready. Opening standard mail composer...");
+        setStatusMessage("Opening standard mail composer...");
         const subject = encodeURIComponent(`Message from ${name || "Portfolio Visitor"}`);
         const body = encodeURIComponent(`[Sent: ${formattedTime}]\n\n${message}`);
         window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
       } else {
         setSubmitStatus("error");
-        setStatusMessage(data.details || "Could not dispatch via EmailJS. Click below to email directly.");
+        setStatusMessage("Could not send message automatically. Click below to email directly.");
       }
     } catch (err: any) {
       setSubmitStatus("error");
@@ -199,13 +199,11 @@ export const Contact: React.FC<ContactProps> = ({ onOpenAI }) => {
           </div>
         </div>
 
-        {/* Right Column: Message Form (EmailJS Integrated) */}
+        {/* Right Column: Message Form */}
         <div className="lg:col-span-7 rounded-3xl bg-gradient-to-b from-[#161b22]/90 to-[#0d1117]/90 backdrop-blur-2xl p-8 sm:p-10 border border-white/10 shadow-2xl">
           <div className="flex items-center justify-between pb-5 border-b border-white/10 mb-6 text-sm font-bold text-white">
             <span>Send a Direct Note</span>
-            <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/30 font-medium">
-              EmailJS: service_ey70e17
-            </span>
+            <span className="text-xs text-white/40 font-normal">Direct Message</span>
           </div>
 
           {submitStatus === "success" && (
