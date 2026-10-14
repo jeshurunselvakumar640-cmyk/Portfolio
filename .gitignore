@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Production build
+dist/
+dist-ssr/
+
+# Local env & cache
+*.local
+.cache/
+.DS_Store
+
+# Editor & IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+/.claude
+
+# Archives & logs
+*.log
+*.zip
